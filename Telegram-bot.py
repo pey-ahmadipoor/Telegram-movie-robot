@@ -48,15 +48,18 @@ class SiteVideos:
         for i in find_all_tag:
             list_rates.append(i.find_all('span', {'class': 'item'})[0].find('span').contents[0])
         return list_rates
-    
+
     def get_dates(self, url):
         soup = self.parser(url)
         find_all_tag = soup.find_all('div', {'class': 'info_bar'})
         list_dates = []
         for i in find_all_tag:
             list_dates.append(i.find_all('span', {'class': 'item'})[1].contents[0])
+            if '\n' in list_dates:
+                list_dates.pop(-1)
+                list_dates.append('None')
         return list_dates
-    
+
     def get_genre(self, url):
         soup = self.parser(url)
         find_all_tag = soup.find_all('div', {'class': 'info_bar'})
@@ -65,15 +68,19 @@ class SiteVideos:
         list2 = []
         count = 0
         for i in find_all_tag:
-            list2.append(i.find_all('span', {'class': 'item'})[2].find_all('a'))
-            for item in list2[count]:
-                list1.append(item.contents[0])
-            s = ', '.join(str(e) for e in list1)
-            list1 = []
-            list_genre.append(s)
-            count += 1
-            if count == 10:
-                return list_genre
+            try:
+                list2.append(i.find_all('span', {'class': 'item'})[2].find_all('a'))
+                for item in list2[count]:
+                    list1.append(item.contents[0])
+                s = ', '.join(str(e) for e in list1)
+                list1 = []
+                list_genre.append(s)
+                count += 1
+                if count == 9:
+                    return list_genre
+            except IndexError:
+                list_genre.append('None')
+                continue
             
     def get_links(self, url):
         soup = self.parser(url)
@@ -132,6 +139,18 @@ class Bot(SiteVideos):
         else:
             context.bot.send_message(chat_id=update.message.chat_id, text="Bad Command :(")
 
+    def send_movies_from_site(self, update, context):
+        url = self.get_pages(update, context)
+        if url:
+            for i in range(len(self.get_names(url))):
+                context.bot.send_message(chat_id=update.message.chat_id, text=self.get_links(url)[i])
+                context.bot.send_message(chat_id=update.message.chat_id, text=self.get_names(url)[i])
+                context.bot.send_message(chat_id=update.message.chat_id, text=self.get_dates(url)[i])
+                context.bot.send_message(chat_id=update.message.chat_id, text=self.get_rates(url)[i])
+                context.bot.send_message(chat_id=update.message.chat_id, text=self.get_genre(url)[i])
+                context.bot.send_message(chat_id=update.message.chat_id, text=self.get_stories(url)[i])
+            context.bot.send_message(chat_id=update.message.chat_id, text='Finish')
+
     @staticmethod
     def search(update, context):
         pass
@@ -144,13 +163,13 @@ class Bot(SiteVideos):
         help_handler = CommandHandler('help', self.help)
         movies_handler = CommandHandler('movies', self.movies)
         search_handler = CommandHandler('search', self.search)
-        pages_handler = MessageHandler(Filters.text, self.get_pages)
+        send_movies_from_site_handler = MessageHandler(Filters.text, self.send_movies_from_site)
 
         dispatcher.add_handler(start_handler)
         dispatcher.add_handler(help_handler)
         dispatcher.add_handler(movies_handler)
         dispatcher.add_handler(search_handler)
-        dispatcher.add_handler(pages_handler)
+        dispatcher.add_handler(send_movies_from_site_handler)
 
         updater.start_polling()
         updater.idle()
