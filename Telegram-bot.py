@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
-from telegram.ext import Updater
-from telegram.ext import CommandHandler
+from telegram.ext import CommandHandler, Updater, MessageHandler, Filters
 import requests
 import re
 import time
@@ -91,3 +90,67 @@ class SiteVideos:
             find_all_tag = soup.find('div', {'class': 'item_content'})
             list_stories.append(find_all_tag.findChildren()[-1].contents[0])
         return list_stories
+
+
+class Bot(SiteVideos):
+    def __init__(self, token):
+        SiteVideos.__init__(self)
+        self.token = token
+
+    @staticmethod
+    def start(update, context):
+        message = f"🤖 Hello {update.message.chat.first_name}!\n I am Movies Finder Bot\n\nI'm going to help you" \
+                  f" find your movies.\nUse /help command & enjoy amazing bot features"
+        context.bot.send_message(chat_id=update.message.chat_id, text=message)
+
+    @staticmethod
+    def help(update, context):
+        message = f"✅ Commands:\n\n" \
+                  f"🌚 /start — Start or Restart Bot\n\n" \
+                  f"🌚 /help — Help\n\n" \
+                  f"🌚 /movies — Get Movies form site\n\n" \
+                  f"🌚 /search — Search Movies from site\n\n"
+        context.bot.send_message(chat_id=update.message.chat_id, text=message)
+
+    @staticmethod
+    def movies(update, context):
+        message = f"🌝 To view videos on each page of the site, please \n" \
+                  f"enter the page name along with the page number\n\n" \
+                  f"Example: page23"
+        context.bot.send_message(chat_id=update.message.chat_id, text=message)
+
+    @staticmethod
+    def get_pages(update, context):
+        text = update.message.text
+        patt = r'^page\d'
+        if re.findall(patt, text):
+            patt = r'\d{1,2}'
+            page_number = re.findall(patt, text)
+            url = f'https://cinamabox.com/page/{page_number[0]}/'
+            context.bot.send_message(chat_id=update.message.chat_id, text="OK, Please Wait :)")
+            return url
+        else:
+            context.bot.send_message(chat_id=update.message.chat_id, text="Bad Command :(")
+
+    @staticmethod
+    def search(update, context):
+        pass
+
+    def main(self):
+        updater = Updater(token=self.token, use_context=True)
+        dispatcher = updater.dispatcher
+
+        start_handler = CommandHandler('start', self.start)
+        help_handler = CommandHandler('help', self.help)
+        movies_handler = CommandHandler('movies', self.movies)
+        search_handler = CommandHandler('search', self.search)
+        pages_handler = MessageHandler(Filters.text, self.get_pages)
+
+        dispatcher.add_handler(start_handler)
+        dispatcher.add_handler(help_handler)
+        dispatcher.add_handler(movies_handler)
+        dispatcher.add_handler(search_handler)
+        dispatcher.add_handler(pages_handler)
+
+        updater.start_polling()
+        updater.idle()
